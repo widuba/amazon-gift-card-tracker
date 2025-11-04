@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Amazon Gift Card Tracker</title>
+<style>
+  :root{
+    --bg:#0e1217; --card:#141a22; --muted:#9fb0c4; --text:#eeeff4;
+    --accent:#6ea8ff; --accent2:#20dfa8; --danger:#ff5a6f; --ok:#40d37a;
+    --border:1px solid rgba(255,255,255,.09);
+    --shadow:0 12px 30px rgba(0,0,0,.35);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    color:var(--text);
+    background:
+      radial-gradient(900px 600px at -10% -10%, rgba(110,168,255,.20), transparent),
+      radial-gradient(900px 600px at 120% -10%, rgba(32,223,168,.14), transparent),
+      var(--bg);
+    min-height:100dvh;
+  }
+  .wrap{max-width:980px; margin:22px auto; padding:0 18px; display:grid; gap:16px}
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:18px;
+  }
+  h1,h2,h3{margin:0 0 10px}
+  p{margin:6px 0}
+  .muted{color:var(--muted)} .small{font-size:.92rem}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .right{margin-left:auto}
+  input,button{font:inherit; color:var(--text)}
+  input{
+    background:var(--card); border:var(--border); padding:10px 12px; border-radius:10px; outline:none; min-width:0;
+  }
+  input[type="number"]{width:160px}
+  button{
+    background:var(--accent); border:0; padding:10px 14px; border-radius:10px; cursor:pointer;
+    transition:transform .04s ease, filter .2s ease;
+  }
+  button:hover{filter:brightness(1.06)} button:active{transform:translateY(1px)}
+  .btn-ghost{background:transparent; border:var(--border)}
+  .btn-danger{background:var(--danger)}
+  .btn-ok{background:var(--ok); color:#092413}
+  .pill{padding:6px 10px; border-radius:999px; border:var(--border); background:rgba(255,255,255,.05)}
+  .grid{display:grid; gap:16px}
+  .grid-2{grid-template-columns:1.2fr .8fr}
+  @media (max-width:900px){.grid-2{grid-template-columns:1fr}}
+  table{width:100%; border-collapse:collapse}
+  th,td{padding:10px; text-align:left; vertical-align:middle}
+  thead th{color:var(--muted); font-weight:700}
+  tbody tr+tr td, thead tr+tr th{border-top:1px solid rgba(255,255,255,.1)}
+  .goal{
+    display:grid; grid-template-columns: 1.2fr .8fr .8fr .9fr .9fr auto; gap:10px; align-items:center;
+  }
+  .goal input[type="number"]{width:120px}
+  .progress{
+    width:100%; height:12px; background:rgba(255,255,255,.08); border-radius:999px; border:1px solid rgba(255,255,255,.12); overflow:hidden;
+  }
+  .bar{height:100%; background:linear-gradient(90deg, var(--accent2), #7cffc2)}
+  .total{
+    font-size:2.2rem; font-weight:800; letter-spacing:.3px;
+    background:linear-gradient(90deg,#fff,#d7deff); -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .empty{color:#cbd2ff; opacity:.9; border:1px dashed rgba(255,255,255,.2); padding:14px; border-radius:12px}
+  details.balance-editor{margin-top:18px}
+  details.balance-editor summary{
+    cursor:pointer; user-select:none; list-style:none; display:inline-flex; align-items:center; gap:10px;
+    padding:8px 12px; border-radius:10px; border:var(--border); background:rgba(255,255,255,.04);
+  }
+  details.balance-editor[open] summary{background:rgba(255,255,255,.06)}
+  .fade-note{opacity:.8; font-size:.92rem}
+  .toast{
+    position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.45);
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .toast.show{opacity:1; pointer-events:auto}
+  .toast-box{
+    background:#0b1016; border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:18px 20px; max-width:520px; text-align:center;
+    box-shadow:0 18px 50px rgba(0,0,0,.45)
+  }
+  /* Auth */
+  .auth-grid{display:grid; gap:16px; grid-template-columns:1fr 1fr}
+  @media (max-width:900px){.auth-grid{grid-template-columns:1fr}}
+  .error{color:#ff9aa7}
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- AUTH CARD -->
+    <div id="authCard" class="card" style="display:none">
+      <h1>Amazon Gift Card Tracker</h1>
+      <p class="muted">Sign in with Email & Password to save your balance and goals across devices.</p>
+      <div class="auth-grid">
+        <div class="card">
+          <h3>Log in</h3>
+          <div class="grid">
+            <input id="loginEmail" placeholder="you@example.com" autocomplete="username" />
+            <input id="loginPass" type="password" placeholder="Your password" autocomplete="current-password" />
+            <button id="loginBtn">Log in</button>
+            <p id="loginErr" class="error small"></p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Create account</h3>
+          <div class="grid">
+            <input id="regEmail" placeholder="you@example.com" autocomplete="username" />
+            <input id="regPass" type="password" placeholder="At least 6 characters" autocomplete="new-password" />
+            <button id="regBtn" class="btn-ok">Create account</button>
+            <p class="muted small">Enable <strong>Email/Password</strong> under Firebase → Authentication → Sign-in method. Add your domain under Authentication → Settings → Authorized domains.</p>
+            <p id="regErr" class="error small"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP CARD -->
+    <div id="appCard" class="card" style="display:none">
+      <div class="row">
+        <div>
+          <h1>Amazon Gift Card Tracker</h1>
+          <p class="muted">Allocate your current debit-card balance toward the goals you care about.</p>
+        </div>
+        <div class="right" style="text-align:right">
+          <div class="muted small">Signed in as</div>
+          <div id="who" class="pill">…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN UI -->
+    <div id="mainUI" style="display:none" class="grid">
+      <!-- Balance header -->
+      <div class="card">
+        <div class="row">
+          <div class="muted small">Current balance</div>
+          <div id="balanceDisplay" class="total">$0.00</div>
+          <button id="logoutBtn" class="btn-ghost right">Log out</button>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <!-- Goals & allocations -->
+        <div class="card">
+          <h2>Your goals</h2>
+          <div class="row small" style="margin-bottom:6px">
+            <span class="muted">Add goals on the right, then type how much to allocate to each and press <strong>Confirm allocations</strong>.</span>
+            <span class="pill right" id="unallocatedPill">Unallocated available: $0.00</span>
+          </div>
+          <div id="goalsList" class="grid" style="gap:12px"></div>
+          <div id="noGoals" class="empty" style="display:none">No goals yet. Add one in the panel on the right.</div>
+          <div class="row" style="margin-top:10px">
+            <button id="confirmBtn" class="btn-ok">Confirm allocations</button>
+            <button id="clearAllocBtn" class="btn-ghost">Clear typed amounts</button>
+            <button id="resetBtn" class="btn-danger right">Remove all goals</button>
+          </div>
+        </div>
+
+        <!-- Add goal + balance editor -->
+        <div class="card">
+          <h2>Add a goal</h2>
+          <div class="row">
+            <input id="goalName" placeholder="Goal name (e.g., Concert, New Game, Trip)" style="flex:1; min-width:180px" />
+            <input id="goalCost" type="number" min="0" step="0.01" placeholder="Cost (e.g., 50.00)" />
+            <button id="addGoalBtn">Add</button>
+          </div>
+          <p class="small fade-note" style="margin-top:8px">Partially fund as many times as you like. When a goal reaches its total cost, you’ll see a congrats popup.</p>
+
+          <details class="balance-editor">
+            <summary class="small">Advanced / Balance — <span class="muted">Amount in debit card</span></summary>
+            <div class="row" style="margin-top:10px">
+              <label class="small muted">Amount in debit card</label>
+              <input id="balanceInput" type="number" min="0" step="0.01" placeholder="e.g., 123.45" />
+              <button id="updateBalanceBtn" class="btn-ghost">Update balance</button>
+            </div>
+            <p id="balanceErr" class="error small"></p>
+            <p class="small fade-note">This value shows at the top as your current balance.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite" aria-modal="true" role="dialog">
+    <div class="toast-box">
+      <h3 id="toastTitle">You saved for your goal! 🎉</h3>
+      <p id="toastMsg" class="muted">Congrats!</p>
+      <div class="row" style="justify-content:center; margin-top:12px">
+        <button id="toastClose" class="btn-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+<!-- Firebase (CDN ESM) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import {
+    getAuth, setPersistence, browserLocalPersistence,
+    onAuthStateChanged, createUserWithEmailAndPassword,
+    signInWithEmailAndPassword, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, runTransaction, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+  /* === Your Firebase config === */
+  const firebaseConfig = {
+    apiKey: "AIzaSyDZ237z9TsiTZt0WQRN0VljC61Ug6QejPU",
+    authDomain: "patricks-rewards-program.firebaseapp.com",
+    projectId: "patricks-rewards-program",
+    storageBucket: "patricks-rewards-program.firebasestorage.app",
+    messagingSenderId: "928495158543",
+    appId: "1:928495158543:web:6851ccef5564ff61edea7a",
+    measurementId: "G-KFYMMMKCLZ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+  await setPersistence(auth, browserLocalPersistence);
+
+  /* ---------- DOM refs & helpers ---------- */
+  const $ = s => document.querySelector(s);
+  const fmt = n => (isNaN(n) ? '$0.00' :
+    Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'}));
+  const clamp2 = n => Math.floor((Number(n)+1e-9)*100)/100;
+  const escapeHtml = s => String(s).replace(/[&<>\"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+
+  const authCard = $('#authCard');
+  const appCard  = $('#appCard');
+  const mainUI   = $('#mainUI');
+  const whoEl    = $('#who');
+  const balanceDisplay = $('#balanceDisplay');
+  const goalsList = $('#goalsList');
+  const noGoals = $('#noGoals');
+  const unallocPill = $('#unallocatedPill');
+
+  const toast = $('#toast'), toastTitle = $('#toastTitle'), toastMsg = $('#toastMsg');
+  $('#toastClose').onclick = ()=> toast.classList.remove('show');
+  toast.addEventListener('click', (e)=>{ if(e.target===toast) toast.classList.remove('show'); });
+
+  const userDocRef = (uid)=> doc(db, 'debitTrackerUsers', uid); // per-user doc
+
+  function showAuth(){ authCard.style.display='block'; appCard.style.display='none'; mainUI.style.display='none'; }
+  function showApp(){ authCard.style.display='none'; appCard.style.display='block'; mainUI.style.display='grid'; }
+  function showToast(title, msg){ toastTitle.textContent = title; toastMsg.textContent = msg || ''; toast.classList.add('show'); }
+
+  /* ---------- Auth UI ---------- */
+  $('#regBtn').onclick = async ()=>{
+    $('#regErr').textContent='';
+    try{
+      const email = $('#regEmail').value.trim();
+      const pass  = $('#regPass').value;
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await setDoc(userDocRef(cred.user.uid), { balance: 0, goals: [] }, { merge:true });
+    }catch(e){ $('#regErr').textContent = e.message; }
+  };
+  $('#loginBtn').onclick = async ()=>{
+    $('#loginErr').textContent='';
+    try{
+      const email = $('#loginEmail').value.trim();
+      const pass  = $('#loginPass').value;
+      await signInWithEmailAndPassword(auth, email, pass);
+    }catch(e){ $('#loginErr').textContent = e.message; }
+  };
+  $('#logoutBtn').onclick = ()=> signOut(auth);
+
+  /* ---------- Live auth + realtime data ---------- */
+  let unsub = null;
+  onAuthStateChanged(auth, async (user)=>{
+    if(!user){
+      if (unsub){ unsub(); unsub=null; }
+      showAuth();
+      return;
+    }
+    showApp();
+    whoEl.textContent = user.email || 'Signed in';
+
+    // Ensure doc exists and listen
+    const ref = userDocRef(user.uid);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) await setDoc(ref, { balance: 0, goals: [] }, { merge:true });
+
+    if (unsub) unsub();
+    unsub = onSnapshot(ref, (s)=>{
+      const d = s.data() || { balance:0, goals:[] };
+      render(d);
+    }, (err)=>{
+      console.error('onSnapshot error', err);
+    });
+  });
+
+  /* ---------- Rendering & actions ---------- */
+  function render(data){
+    render.data = data; // stash
+    // Header
+    balanceDisplay.textContent = fmt(data.balance);
+
+    // Mirror balance into the editor input every render (so you see the current value)
+    const balanceInput = $('#balanceInput');
+    if (document.activeElement !== balanceInput) {
+      balanceInput.value = (typeof data.balance === 'number' ? data.balance.toFixed(2) : '');
+    }
+
+    // Goals
+    goalsList.innerHTML='';
+    if(!data.goals || !data.goals.length){
+      noGoals.style.display='block';
+    }else{
+      noGoals.style.display='none';
+      data.goals.forEach((g, idx)=>{
+        const left = Math.max(0, clamp2(g.cost - (g.saved||0)));
+        const pct  = g.cost>0 ? Math.min(100, Math.round(((g.saved||0)/g.cost)*100)) : 0;
+        const row = document.createElement('div');
+        row.className='goal';
+        row.innerHTML = `
+          <div><strong>${escapeHtml(g.name)}</strong><div class="muted small">Goal #${idx+1}</div></div>
+          <div>${fmt(g.cost)}</div>
+          <div>
+            <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
+            <div class="small muted" style="margin-top:4px">${fmt(g.saved||0)} / ${fmt(g.cost)} • ${pct}%</div>
+          </div>
+          <div>
+            <input type="number" min="0" step="0.01" class="alloc" data-id="${g.id}" placeholder="0.00" />
+            <div class="small muted" style="margin-top:4px">Remaining: ${fmt(left)}</div>
+          </div>
+          <div>
+            <button class="btn-ghost min-btn" data-id="${g.id}" data-min="5">+ $5</button>
+            <button class="btn-ghost min-btn" data-id="${g.id}" data-min="10">+ $10</button>
+          </div>
+          <div><button class="btn-danger del" data-id="${g.id}">Delete</button></div>
+        `;
+        goalsList.appendChild(row);
+      });
+    }
+    updateUnallocatedPill();
+  }
+
+  function updateUnallocatedPill(){
+    const data = render.data || { balance:0, goals:[] };
+    let typed = 0;
+    document.querySelectorAll('.alloc').forEach(inp=>{
+      const v = parseFloat(inp.value);
+      if(!isNaN(v) && v>0) typed += v;
+    });
+    const available = clamp2((data.balance||0) - typed);
+    unallocPill.textContent = `Unallocated available: ${fmt(Math.max(0,available))}`;
+  }
+
+  // Add goal
+  $('#addGoalBtn').onclick = async ()=>{
+    const user = auth.currentUser; if(!user) return;
+    const name = $('#goalName').value.trim();
+    const cost = parseFloat($('#goalCost').value);
+    if(!name || isNaN(cost) || cost<=0){ alert('Please enter a valid goal name and a positive cost.'); return; }
+    const ref = userDocRef(user.uid);
+    await runTransaction(db, async (tx)=>{
+      const s = await tx.get(ref);
+      const d = s.data() || { balance:0, goals:[] };
+      (d.goals ||= []).push({ id: crypto.randomUUID(), name, cost: clamp2(cost), saved: 0 });
+      tx.set(ref, d);
+    });
+    $('#goalName').value=''; $('#goalCost').value='';
+  };
+
+  // Remove all goals
+  $('#resetBtn').onclick = async ()=>{
+    const user = auth.currentUser; if(!user) return;
+    if(!confirm('Remove ALL goals? This does not change your balance.')) return;
+    await setDoc(userDocRef(user.uid), { goals: [] }, { merge:true });
+  };
+
+  // Clear typed allocations (inputs only)
+  $('#clearAllocBtn').onclick = ()=>{
+    document.querySelectorAll('.alloc').forEach(inp=> inp.value='');
+    updateUnallocatedPill();
+  };
+
+  // Live update unallocated pill as you type
+  goalsList.addEventListener('input', (e)=>{
+    if(e.target.classList.contains('alloc')) updateUnallocatedPill();
+  });
+
+  // Quick +$ buttons & deletes
+  goalsList.addEventListener('click', async (e)=>{
+    const t = e.target;
+    const id = t.getAttribute('data-id'); if(!id) return;
+
+    if(t.classList.contains('min-btn')){
+      const add = parseFloat(t.getAttribute('data-min')||'0');
+      const input = goalsList.querySelector(`input.alloc[data-id="${id}"]`);
+      const cur = parseFloat(input.value||'0')||0;
+      input.value = (cur + add).toFixed(2);
+      updateUnallocatedPill();
+      return;
+    }
+
+    if(t.classList.contains('del')){
+      const user = auth.currentUser; if(!user) return;
+      if(!confirm('Delete this goal?')) return;
+      const ref = userDocRef(user.uid);
+      await runTransaction(db, async (tx)=>{
+        const s = await tx.get(ref);
+        const d = s.data() || { balance:0, goals:[] };
+        d.goals = (d.goals||[]).filter(x=> x.id !== id);
+        tx.set(ref, d);
+      });
+    }
+  });
+
+  // Confirm allocations (deduct from balance, add to goals)
+  $('#confirmBtn').onclick = async ()=>{
+    const user = auth.currentUser; if(!user) return;
+
+    // Collect typed allocations
+    const entries = [...document.querySelectorAll('.alloc')]
+      .map(inp => [inp.getAttribute('data-id'), parseFloat(inp.value)])
+      .filter(([_,v])=> !isNaN(v) && v>0)
+      .map(([id,v])=> [id, clamp2(v)]);
+    if(!entries.length){ alert('Type at least one positive allocation.'); return; }
+
+    const ref = userDocRef(user.uid);
+    let completed = [];
+    await runTransaction(db, async (tx)=>{
+      const s = await tx.get(ref);
+      const d = s.data() || { balance:0, goals:[] };
+
+      let totalTyped = entries.reduce((a,[_id,v])=>a+v, 0);
+      totalTyped = clamp2(totalTyped);
+      if (totalTyped > (d.balance||0) + 1e-9) throw new Error('Allocations exceed your current balance.');
+
+      const before = new Map((d.goals||[]).map(g=>[g.id, g.saved||0]));
+
+      // Apply
+      const want = new Map(entries);
+      d.goals = (d.goals||[]).map(g=>{
+        const w = clamp2(want.get(g.id)||0);
+        if(w<=0) return g;
+        const remaining = clamp2(g.cost - (g.saved||0));
+        const applied   = clamp2(Math.min(remaining, w));
+        const saved     = clamp2((g.saved||0) + applied);
+        return {...g, saved: Math.min(saved, g.cost)};
+      });
+
+      // Sum applied
+      let appliedTotal = 0;
+      for(const g of d.goals){
+        const prev = before.get(g.id)||0;
+        appliedTotal += clamp2((g.saved||0) - prev);
+      }
+      d.balance = clamp2((d.balance||0) - appliedTotal);
+
+      // Completions
+      completed = d.goals.filter(g => Math.abs((g.saved||0) - g.cost) < 1e-9 && (before.get(g.id)||0) < g.cost)
+                         .map(g => g.name);
+
+      tx.set(ref, d);
+    });
+
+    // Clear inputs and show toast
+    document.querySelectorAll('.alloc').forEach(inp=> inp.value='');
+    updateUnallocatedPill();
+    if(completed.length){
+      showToast(`You saved for ${completed[0]}! 🎉`, 'Congrats!');
+    }
+  };
+
+  // --- FIXED: Update balance (simple, robust, visible errors) ---
+  $('#updateBalanceBtn').onclick = async ()=>{
+    const user = auth.currentUser; if(!user) return;
+    const errEl = $('#balanceErr');
+    errEl.textContent = '';
+    let v = parseFloat($('#balanceInput').value);
+    if(isNaN(v) || v < 0){
+      errEl.textContent = 'Enter a non-negative number (e.g., 123.45).';
+      return;
+    }
+    v = clamp2(v);
+    try{
+      await setDoc(userDocRef(user.uid), { balance: v }, { merge:true });
+      showToast('Balance updated', `New balance: ${fmt(v)}`);
+    }catch(e){
+      console.error('Update balance error', e);
+      errEl.textContent = e?.message || 'Failed to update balance. Check Firestore rules.';
+    }
+  };
+
+</script>
+</body>
+</html>
